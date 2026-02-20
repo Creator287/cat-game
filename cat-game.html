@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat House Adventure</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #2c1810; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas { display: block; }
+        
+        .character-selection {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .selection-title {
+            color: white;
+            font-size: 3em;
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .cat-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .cat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .cat-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        
+        .cat-preview {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 1rem;
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            border-radius: 50%;
+        }
+        
+        .cat-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .cat-description {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .game-ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .score {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="character-selection" id="characterSelection">
+        <h1 class="selection-title">Choose Your Cat</h1>
+        <div class="cat-options">
+            <div class="cat-card" onclick="selectCat('siamese')">
+                <div class="cat-preview" style="background: linear-gradient(45deg, #f0e68c, #daa520);"></div>
+                <div class="cat-name">Siamese</div>
+                <div class="cat-description">Elegant and vocal</div>
+            </div>
+            <div class="cat-card" onclick="selectCat('persian')">
+                <div class="cat-preview" style="background: linear-gradient(45deg, #fff, #f5f5dc);"></div>
+                <div class="cat-name">Persian</div>
+                <div class="cat-description">Fluffy and calm</div>
+            </div>
+            <div class="cat-card" onclick="selectCat('tabby')">
+                <div class="cat-preview" style="background: linear-gradient(45deg, #ff8c00, #8b4513);"></div>
+                <div class="cat-name">Tabby</div>
+                <div class="cat-description">Playful and friendly</div>
+            </div>
+            <div class="cat-card" onclick="selectCat('black')">
+                <div class="cat-preview" style="background: linear-gradient(45deg, #2c2c2c, #000);"></div>
+                <div class="cat-name">Black Cat</div>
+                <div class="cat-description">Mysterious and sleek</div>
+            </div>
+            <div class="cat-card" onclick="selectCat('calico')">
+                <div class="cat-preview" style="background: linear-gradient(45deg, #ff6347, #ffa500, #fff);"></div>
+                <div class="cat-name">Calico</div>
+                <div class="cat-description">Colorful and unique</div>
+            </div>
+            <div class="cat-card" onclick="selectCat('ginger')">
+                <div class="cat-preview" style="background: linear-gradient(45deg, #ff4500, #ff8c00);"></div>
+                <div class="cat-name">Ginger</div>
+                <div class="cat-description">Cheerful and bold</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-ui hidden" id="gameUI">
+        <h3>🐱 Cat Controls</h3>
+        <p>WASD/Arrows - Move</p>
+        <p>Space - Jump</p>
+        <p>Mouse - Look Around</p>
+    </div>
+    
+    <div class="score hidden" id="score">
+        <h3>🐟 Fish: <span id="scoreValue">0</span></h3>
+    </div>
+
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, player;
+        let selectedCat = 'siamese';
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let prevTime = performance.now();
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let score = 0;
+        let collectibles = [];
+
+        const catBreeds = {
+            siamese: { color: 0xf0e68c, size: 0.8, speed: 1.2 },
+            persian: { color: 0xf5f5dc, size: 1.0, speed: 0.8 },
+            tabby: { color: 0xff8c00, size: 0.9, speed: 1.0 },
+            black: { color: 0x2c2c2c, size: 0.85, speed: 1.1 },
+            calico: { color: 0xffa500, size: 0.95, speed: 0.9 },
+            ginger: { color: 0xff4500, size: 0.9, speed: 1.0 }
+        };
+
+        function selectCat(breed) {
+            selectedCat = breed;
+            document.getElementById('characterSelection').classList.add('hidden');
+            document.getElementById('gameUI').classList.remove('hidden');
+            document.getElementById('score').classList.remove('hidden');
+            initGame();
+        }
+
+        function initGame() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x8b7355);
+            scene.fog = new THREE.Fog(0x8b7355, 5, 50);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            document.body.appendChild(renderer.domElement);
+
+            // Enhanced lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+            mainLight.position.set(5, 10, 5);
+            mainLight.castShadow = true;
+            mainLight.shadow.camera.near = 0.1;
+            mainLight.shadow.camera.far = 50;
+            mainLight.shadow.camera.left = -20;
+            mainLight.shadow.camera.right = 20;
+            mainLight.shadow.camera.top = 20;
+            mainLight.shadow.camera.bottom = -20;
+            scene.add(mainLight);
+
+            const fillLight = new THREE.PointLight(0xffd700, 0.5, 10);
+            fillLight.position.set(0, 3, 0);
+            scene.add(fillLight);
+
+            // Create house
+            createHouse();
+
+            // Create cat player
+            createCat();
+
+            // Create collectibles (fish)
+            createCollectibles();
+
+            // Setup controls
+            setupControls();
+
+            animate();
+        }
+
+        function createHouse() {
+            // Floor
+            const floorGeometry = new THREE.PlaneGeometry(30, 30);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x8b4513,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Walls
+            const wallMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xf5deb3,
+                roughness: 0.7,
+                metalness: 0.1
+            });
+
+            // Back wall
+            const backWall = new THREE.Mesh(
+                new THREE.PlaneGeometry(30, 10),
+                wallMaterial
+            );
+            backWall.position.set(0, 5, -15);
+            backWall.receiveShadow = true;
+            scene.add(backWall);
+
+            // Side walls
+            const leftWall = new THREE.Mesh(
+                new THREE.PlaneGeometry(30, 10),
+                wallMaterial
+            );
+            leftWall.rotation.y = Math.PI / 2;
+            leftWall.position.set(-15, 5, 0);
+            leftWall.receiveShadow = true;
+            scene.add(leftWall);
+
+            const rightWall = new THREE.Mesh(
+                new THREE.PlaneGeometry(30, 10),
+                wallMaterial
+            );
+            rightWall.rotation.y = -Math.PI / 2;
+            rightWall.position.set(15, 5, 0);
+            rightWall.receiveShadow = true;
+            scene.add(rightWall);
+
+            // Furniture
+            createFurniture();
+        }
+
+        function createFurniture() {
+            // Sofa
+            const sofaGeometry = new THREE.BoxGeometry(6, 2, 2);
+            const sofaMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+            const sofa = new THREE.Mesh(sofaGeometry, sofaMaterial);
+            sofa.position.set(-8, 1, -8);
+            sofa.castShadow = true;
+            sofa.receiveShadow = true;
+            scene.add(sofa);
+
+            // Table
+            const tableGeometry = new THREE.BoxGeometry(3, 0.2, 2);
+            const tableMaterial = new THREE.MeshStandardMaterial({ color: 0x654321 });
+            const table = new THREE.Mesh(tableGeometry, tableMaterial);
+            table.position.set(0, 1.5, -5);
+            table.castShadow = true;
+            table.receiveShadow = true;
+            scene.add(table);
+
+            // Table legs
+            for (let i = 0; i < 4; i++) {
+                const leg = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.1, 1.5, 0.1),
+                    tableMaterial
+                );
+                leg.position.set(
+                    (i % 2) * 2.8 - 1.4,
+                    0.75,
+                    Math.floor(i / 2) * 1.8 - 0.9
+                );
+                leg.castShadow = true;
+                scene.add(leg);
+            }
+
+            // Lamp
+            const lampBase = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.5, 0.5, 0.2),
+                new THREE.MeshStandardMaterial({ color: 0x333333 })
+            );
+            lampBase.position.set(5, 0.1, 5);
+            lampBase.castShadow = true;
+            scene.add(lampBase);
+
+            const lampPole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.05, 0.05, 3),
+                new THREE.MeshStandardMaterial({ color: 0x333333 })
+            );
+            lampPole.position.set(5, 1.5, 5);
+            lampPole.castShadow = true;
+            scene.add(lampPole);
+
+            const lampShade = new THREE.Mesh(
+                new THREE.ConeGeometry(1, 0.8, 8),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0xffd700,
+                    emissive: 0xffd700,
+                    emissiveIntensity: 0.2
+                })
+            );
+            lampShade.position.set(5, 3, 5);
+            lampShade.castShadow = true;
+            scene.add(lampShade);
+
+            // Cat tree
+            const catTreeBase = new THREE.Mesh(
+                new THREE.CylinderGeometry(1, 1, 0.5),
+                new THREE.MeshStandardMaterial({ color: 0x8b4513 })
+            );
+            catTreeBase.position.set(8, 0.25, 8);
+            catTreeBase.castShadow = true;
+            scene.add(catTreeBase);
+
+            const catTreePole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.15, 4),
+                new THREE.MeshStandardMaterial({ color: 0x654321 })
+            );
+            catTreePole.position.set(8, 2.25, 8);
+            catTreePole.castShadow = true;
+            scene.add(catTreePole);
+
+            const catTreeTop = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.8, 0.8, 0.3),
+                new THREE.MeshStandardMaterial({ color: 0x8b4513 })
+            );
+            catTreeTop.position.set(8, 4.4, 8);
+            catTreeTop.castShadow = true;
+            scene.add(catTreeTop);
+        }
+
+        function createCat() {
+            const breed = catBreeds[selectedCat];
+            
+            // Cat body - more detailed shape
+            const bodyGeometry = new THREE.SphereGeometry(breed.size * 0.6, 16, 12);
+            bodyGeometry.scale(1, 0.7, 1.3);
+            const bodyMaterial = new THREE.MeshStandardMaterial({ 
+                color: breed.color,
+                roughness: 0.3,
+                metalness: 0.1
+            });
+            player = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            player.position.y = breed.size;
+            player.castShadow = true;
+            scene.add(player);
+
+            // Cat head - more detailed
+            const headGeometry = new THREE.SphereGeometry(breed.size * 0.5, 12, 10);
+            const head = new THREE.Mesh(headGeometry, bodyMaterial);
+            head.position.set(0, breed.size * 0.3, breed.size * 0.7);
+            head.castShadow = true;
+            player.add(head);
+
+            // Snout
+            const snoutGeometry = new THREE.SphereGeometry(breed.size * 0.2, 8, 6);
+            snoutGeometry.scale(1, 0.7, 1.2);
+            const snout = new THREE.Mesh(snoutGeometry, bodyMaterial);
+            snout.position.set(0, 0, breed.size * 0.3);
+            head.add(snout);
+
+            // Eyes
+            for (let i = 0; i < 2; i++) {
+                const eyeGeometry = new THREE.SphereGeometry(breed.size * 0.08, 8, 8);
+                const eyeMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x000000,
+                    roughness: 0.1,
+                    metalness: 0.8
+                });
+                const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                eye.position.set((i - 0.5) * breed.size * 0.25, breed.size * 0.1, breed.size * 0.4);
+                head.add(eye);
+            }
+
+            // Ears - more detailed
+            const earGeometry = new THREE.ConeGeometry(breed.size * 0.15, breed.size * 0.4, 8);
+            for (let i = 0; i < 2; i++) {
+                const ear = new THREE.Mesh(earGeometry, bodyMaterial);
+                ear.position.set((i - 0.5) * breed.size * 0.35, breed.size * 0.6, breed.size * 0.6);
+                ear.rotation.z = (i - 0.5) * 0.2;
+                ear.rotation.x = -0.1;
+                head.add(ear);
+            }
+
+            // Legs
+            for (let i = 0; i < 4; i++) {
+                const legGeometry = new THREE.CylinderGeometry(breed.size * 0.1, breed.size * 0.12, breed.size * 0.6);
+                const leg = new THREE.Mesh(legGeometry, bodyMaterial);
+                const angle = (i / 4) * Math.PI * 2;
+                leg.position.set(
+                    Math.cos(angle) * breed.size * 0.3,
+                    -breed.size * 0.3,
+                    Math.sin(angle) * breed.size * 0.3 + breed.size * 0.2
+                );
+                leg.castShadow = true;
+                player.add(leg);
+            }
+
+            // Tail
+            const tailGeometry = new THREE.CylinderGeometry(breed.size * 0.08, breed.size * 0.12, breed.size * 0.8);
+            const tail = new THREE.Mesh(tailGeometry, bodyMaterial);
+            tail.position.set(0, -breed.size * 0.2, -breed.size * 0.6);
+            tail.rotation.z = 0.3;
+            tail.castShadow = true;
+            player.add(tail);
+        }
+
+        function createCollectibles() {
+            const fishGeometry = new THREE.ConeGeometry(0.3, 0.6, 8);
+            const fishMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xff6347,
+                roughness: 0.3,
+                metalness: 0.2
+            });
+
+            for (let i = 0; i < 10; i++) {
+                const fish = new THREE.Mesh(fishGeometry, fishMaterial);
+                fish.position.set(
+                    (Math.random() - 0.5) * 20,
+                    0.5,
+                    (Math.random() - 0.5) * 20
+                );
+                fish.rotation.z = Math.random() * Math.PI;
+                fish.castShadow = true;
+                fish.userData.isCollectible = true;
+                collectibles.push(fish);
+                scene.add(fish);
+            }
+        }
+
+        function setupControls() {
+            document.addEventListener('keydown', (event) => {
+                switch (event.code) {
+                    case 'ArrowUp':
+                    case 'KeyW':
+                        moveForward = true;
+                        break;
+                    case 'ArrowDown':
+                    case 'KeyS':
+                        moveBackward = true;
+                        break;
+                    case 'ArrowLeft':
+                    case 'KeyA':
+                        moveLeft = true;
+                        break;
+                    case 'ArrowRight':
+                    case 'KeyD':
+                        moveRight = true;
+                        break;
+                    case 'Space':
+                        if (player.position.y <= catBreeds[selectedCat].size + 0.1) {
+                            velocity.y = 5;
+                        }
+                        break;
+                }
+            });
+
+            document.addEventListener('keyup', (event) => {
+                switch (event.code) {
+                    case 'ArrowUp':
+                    case 'KeyW':
+                        moveForward = false;
+                        break;
+                    case 'ArrowDown':
+                    case 'KeyS':
+                        moveBackward = false;
+                        break;
+                    case 'ArrowLeft':
+                    case 'KeyA':
+                        moveLeft = false;
+                        break;
+                    case 'ArrowRight':
+                    case 'KeyD':
+                        moveRight = false;
+                        break;
+                }
+            });
+
+            document.addEventListener('mousemove', (event) => {
+                const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+                const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+                
+                if (player) {
+                    player.rotation.y = mouseX * Math.PI;
+                }
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+
+            if (player) {
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+                velocity.y -= 9.8 * delta;
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+
+                const speed = catBreeds[selectedCat].speed * 5;
+                if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+
+                player.position.x += velocity.x * delta;
+                player.position.y += velocity.y * delta;
+                player.position.z += velocity.z * delta;
+
+                // Keep player on ground
+                if (player.position.y <= catBreeds[selectedCat].size) {
+                    player.position.y = catBreeds[selectedCat].size;
+                    velocity.y = 0;
+                }
+
+                // Keep player in bounds
+                player.position.x = Math.max(-14, Math.min(14, player.position.x));
+                player.position.z = Math.max(-14, Math.min(14, player.position.z));
+
+                // Check collectibles
+                checkCollectibles();
+            }
+
+            renderer.render(scene, camera);
+            prevTime = time;
+        }
+
+        function checkCollectibles() {
+            for (let i = collectibles.length - 1; i >= 0; i--) {
+                const collectible = collectibles[i];
+                const distance = player.position.distanceTo(collectible.position);
+                
+                if (distance < 1) {
+                    scene.remove(collectible);
+                    collectibles.splice(i, 1);
+                    score++;
+                    document.getElementById('scoreValue').textContent = score;
+                    
+                    // Respawn fish after delay
+                    setTimeout(() => {
+                        collectible.position.set(
+                            (Math.random() - 0.5) * 20,
+                            0.5,
+                            (Math.random() - 0.5) * 20
+                        );
+                        scene.add(collectible);
+                        collectibles.push(collectible);
+                    }, 3000);
+                }
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                '
+
+
+
+
+
+
+
+
+
+                
