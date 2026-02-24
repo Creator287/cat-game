@@ -137,6 +137,11 @@
                 <div class="cat-name">Ginger</div>
                 <div class="cat-description">Cheerful and bold</div>
             </div>
+            <div class="cat-card" onclick="selectCat('greywhite')">
+                <div class="cat-preview" style="background: linear-gradient(45deg, #c0c0c0, #ffffff);"></div>
+                <div class="cat-name">Grey & White</div>
+                <div class="cat-description">Gentle and curious</div>
+            </div>
         </div>
     </div>
 
@@ -174,7 +179,8 @@
             tabby: { color: 0xff8c00, size: 0.9, speed: 1.0 },
             black: { color: 0x2c2c2c, size: 0.85, speed: 1.1 },
             calico: { color: 0xffa500, size: 0.95, speed: 0.9 },
-            ginger: { color: 0xff4500, size: 0.9, speed: 1.0 }
+            ginger: { color: 0xff4500, size: 0.9, speed: 1.0 },
+            greywhite: { color: 0xc0c0c0, size: 0.85, speed: 1.0 }
         };
 
         function selectCat(breed) {
@@ -422,9 +428,9 @@
             player = new THREE.Group();
             player.position.y = breed.size;
             
-            // Cat body - more realistic shape with better proportions
-            const bodyGeometry = new THREE.SphereGeometry(breed.size * 0.5, 32, 20);
-            bodyGeometry.scale(1.2, 0.7, 1.6);
+            // Cat body - slender and realistic like the photo
+            const bodyGeometry = new THREE.SphereGeometry(breed.size * 0.45, 32, 20);
+            bodyGeometry.scale(1.4, 0.6, 1.8); // More elongated and slender
             const bodyMaterial = new THREE.MeshStandardMaterial({ 
                 color: breed.color,
                 roughness: 0.3,
@@ -435,19 +441,19 @@
             body.castShadow = true;
             player.add(body);
 
-            // Cat head - more realistic proportions
-            const headGeometry = new THREE.SphereGeometry(breed.size * 0.35, 24, 18);
-            headGeometry.scale(1.1, 0.85, 0.9);
+            // Cat head - more realistic proportions like the photo
+            const headGeometry = new THREE.SphereGeometry(breed.size * 0.32, 24, 18);
+            headGeometry.scale(1.0, 0.9, 0.85); // Slightly flattened
             const head = new THREE.Mesh(headGeometry, bodyMaterial);
-            head.position.set(0, breed.size * 0.1, breed.size * 0.55);
+            head.position.set(0, breed.size * 0.05, breed.size * 0.6);
             head.castShadow = true;
             player.add(head);
 
-            // Snout - more cat-like with better shape
-            const snoutGeometry = new THREE.SphereGeometry(breed.size * 0.12, 16, 12);
-            snoutGeometry.scale(1.2, 0.5, 1.8);
+            // Snout - more refined like the photo
+            const snoutGeometry = new THREE.SphereGeometry(breed.size * 0.1, 16, 12);
+            snoutGeometry.scale(1.3, 0.4, 2.0);
             const snout = new THREE.Mesh(snoutGeometry, bodyMaterial);
-            snout.position.set(0, -breed.size * 0.08, breed.size * 0.28);
+            snout.position.set(0, -breed.size * 0.1, breed.size * 0.3);
             head.add(snout);
 
             // Nose - small and pink
@@ -540,29 +546,29 @@
                 }
             }
 
-            // Legs - more realistic positioning and shape
+            // Legs - more slender and realistic like the photo
             for (let i = 0; i < 4; i++) {
-                const legGeometry = new THREE.CylinderGeometry(breed.size * 0.07, breed.size * 0.09, breed.size * 0.6);
+                const legGeometry = new THREE.CylinderGeometry(breed.size * 0.05, breed.size * 0.07, breed.size * 0.65);
                 const leg = new THREE.Mesh(legGeometry, bodyMaterial);
                 
                 let xPos, zPos;
-                if (i < 2) { // front legs
-                    xPos = (i - 0.5) * breed.size * 0.3;
-                    zPos = breed.size * 0.45;
-                } else { // back legs
-                    xPos = (i - 2.5) * breed.size * 0.35;
-                    zPos = -breed.size * 0.35;
+                if (i < 2) { // front legs - more slender
+                    xPos = (i - 0.5) * breed.size * 0.25;
+                    zPos = breed.size * 0.5;
+                } else { // back legs - slightly wider stance
+                    xPos = (i - 2.5) * breed.size * 0.3;
+                    zPos = -breed.size * 0.4;
                 }
                 
-                leg.position.set(xPos, -breed.size * 0.3, zPos);
+                leg.position.set(xPos, -breed.size * 0.32, zPos);
                 leg.castShadow = true;
                 player.add(leg);
 
-                // Paws - more realistic
-                const pawGeometry = new THREE.SphereGeometry(breed.size * 0.1, 12, 12);
-                pawGeometry.scale(1.2, 0.25, 1.5);
+                // Paws - more delicate and realistic
+                const pawGeometry = new THREE.SphereGeometry(breed.size * 0.08, 12, 12);
+                pawGeometry.scale(1.3, 0.2, 1.6);
                 const paw = new THREE.Mesh(pawGeometry, bodyMaterial);
-                paw.position.set(xPos, -breed.size * 0.55, zPos);
+                paw.position.set(xPos, -breed.size * 0.6, zPos);
                 paw.castShadow = true;
                 player.add(paw);
             }
@@ -625,8 +631,7 @@
                         moveRight = true;
                         break;
                     case 'Space':
-                        const collision = checkObjectCollisions();
-                        if (collision.onObject || player.position.y <= catBreeds[selectedCat].size + 0.1) {
+                        if (player && (player.position.y <= catBreeds[selectedCat].size + 0.1)) {
                             velocity.y = 6; // Slightly higher jump for better object access
                         }
                         break;
@@ -710,6 +715,8 @@
         }
 
         function checkObjectCollisions() {
+            if (!player) return { onObject: false, highestObject: catBreeds[selectedCat].size };
+            
             let onObject = false;
             let highestObject = catBreeds[selectedCat].size; // Default ground level
             
