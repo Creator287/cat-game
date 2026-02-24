@@ -157,13 +157,8 @@
     </div>
 
     <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-<script src="https://unpkg.com/three@0.160.0/examples/js/postprocessing/EffectComposer.js"></script>
-<script src="https://unpkg.com/three@0.160.0/examples/js/postprocessing/RenderPass.js"></script>
-<script src="https://unpkg.com/three@0.160.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="https://unpkg.com/three@0.160.0/examples/js/shaders/CopyShader.js"></script>
-<script src="https://unpkg.com/three@0.160.0/examples/js/postprocessing/ShaderPass.js"></script>
     <script>
-        let scene, camera, renderer, player, composer;
+        let scene, camera, renderer, player;
         let selectedCat = 'siamese';
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         let prevTime = performance.now();
@@ -211,19 +206,6 @@
             renderer.toneMappingExposure = 1.2;
             renderer.outputColorSpace = THREE.SRGBColorSpace;
             document.body.appendChild(renderer.domElement);
-
-            // Post-processing setup
-            composer = new THREE.EffectComposer(renderer);
-            const renderPass = new THREE.RenderPass(scene, camera);
-            composer.addPass(renderPass);
-
-            const bloomPass = new THREE.UnrealBloomPass(
-                new THREE.Vector2(window.innerWidth, window.innerHeight),
-                0.3,  // strength
-                0.4,  // radius
-                0.85  // threshold
-            );
-            composer.addPass(bloomPass);
 
             // Enhanced lighting
             const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
@@ -852,7 +834,6 @@
             }
 
             renderer.render(scene, camera);
-            composer.render();
             prevTime = time;
         }
 
@@ -920,7 +901,6 @@
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
-                composer.setSize(window.innerWidth, window.innerHeight);
             }
         });
     </script>
@@ -1150,20 +1130,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-                '
 
 
 
